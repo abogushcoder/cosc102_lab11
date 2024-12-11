@@ -1,12 +1,12 @@
 import java.util.*;
 import java.io.*;
 
-//A bot capable of procedurally generating Shakespeare text
-//after being "trained" on any number of his work(s).
+// A bot capable of procedurally generating Shakespearean-like text
+// after being "trained" on any number of his works.
 public class ShakespeareGPT {
 
-  // Mapping all words the bot has seen in its training
-  // to all the words that follow it
+  // Mapping all words the bot has seen in its training to all the words that
+  // follow it
   private HashMap<String, FreqMap> wordLibrary;
 
   // Set of all words that start sentences.
@@ -20,16 +20,15 @@ public class ShakespeareGPT {
   public static Random rand = new Random();
 
   public ShakespeareGPT() {
-
     this.wordLibrary = new HashMap<String, FreqMap>();
     this.starters = new HashSet<String>();
-
   }
 
   // trains the bot on the text in the argument file name;
   // updates the bot's word library with the text in the argument file.
   //
-  // Returns a boolean indicating if the file was able to be open and read (true)
+  // Returns a boolean indicating if the file was able to be opened and read
+  // (true)
   // or not (false... if file cannot be found or doesn't contain sufficient text).
   public boolean trainOnFile(String fname) {
     try {
@@ -51,30 +50,48 @@ public class ShakespeareGPT {
     return true;
   }
 
-  // Helper method to process the text in a file once its been deemed valid.
+  // Helper method to process the text in a file once it's been deemed valid.
   // Updates the bot's word library as well as sets of sentence starters and
   // enders.
   // Arguments include a Scanner of the file to be processed (pointing at the
   // second word in the file) and the first word in the file.
   private void processWords(Scanner scan, String first) {
-    String prevWord;
-    prevWord = first;
-    if (!starters.contains(first)) {
+    String prevWord = first;
+
+    // If first is not known as a starter, add it
+    if (!this.starters.contains(first)) {
       this.starters.add(first);
+    }
+
+    // If first is not in the word library, add it
+    if (!this.wordLibrary.containsKey(first)) {
       this.wordLibrary.put(first, new FreqMap());
     }
+
     while (scan.hasNext()) {
-      wordToProcess = scan.next();
-      if (prevWord.isSentenceEnder()) {
+      String wordToProcess = scan.next();
+
+      if (isSentenceEnder(prevWord)) {
+        // prevWord ended a sentence, so this new word is a starter
         this.starters.add(wordToProcess);
-
+        if (!this.wordLibrary.containsKey(wordToProcess)) {
+          this.wordLibrary.put(wordToProcess, new FreqMap());
+        }
       } else {
+        // Add wordToProcess to prevWord's frequency map
+        if (!this.wordLibrary.containsKey(prevWord)) {
+          this.wordLibrary.put(prevWord, new FreqMap());
+        }
         this.wordLibrary.get(prevWord).add(wordToProcess);
+
+        // If this new word is not in the library, add it
+        if (!this.wordLibrary.containsKey(wordToProcess)) {
+          this.wordLibrary.put(wordToProcess, new FreqMap());
+        }
       }
+
       prevWord = wordToProcess;
-
     }
-
   }
 
   // Determines if a particular word is a sentence ender;
@@ -96,31 +113,66 @@ public class ShakespeareGPT {
     return false;
   }
 
-  // Returns a random sentence starter from the bot's word library.
-  // If the bot's sentence starter set is empty, throws an IllegalStateException
-  // When picking, all sentence starters should be equally weighted
+  // Returns a random sentence starter from the bot's starters set.
+  // If the bot's sentence starter set is empty, throws an IllegalStateException.
+  // All sentence starters should be equally weighted.
   public String getRandomStarter() {
-    if (this.starters == null) {
-      throw new IllegalStateException("Starters HashSet is empty");
+    if (this.starters == null || this.starters.size() == 0) {
+      throw new IllegalStateException("No sentence starters available!");
     }
     int starterSize = this.starters.size();
-    int randomNum = rand.nextInt((starterSize) + 1;
-    int iterator = 1;
-    for (String word: this.starters) {
+    int randomNum = rand.nextInt(starterSize);
+    int iterator = 0;
+    for (String word : this.starters) {
       if (iterator == randomNum) {
         return word;
       }
       iterator++;
     }
-  return null;
+    // Should never reach here if logic above is correct
+    return null;
   }
 
   // Generates and PRINTS the argument number of sentences,
-  // eginning with a random sentence starter
+  // beginning with a random sentence starter.
   public void generate(int numOfSentences) {
+    if (numOfSentences <= 0) {
+      throw new IllegalArgumentException("Number of sentences must be > 0");
+    }
 
-    // Implement me!!
+    int sentencesGenerated = 0;
+    String currentWord = getRandomStarter();
+    System.out.print(currentWord);
 
+    while (sentencesGenerated < numOfSentences) {
+      if (isSentenceEnder(currentWord)) {
+        sentencesGenerated++;
+        if (sentencesGenerated == numOfSentences) {
+
+          System.out.println();
+          break;
+        } else {
+          currentWord = getRandomStarter();
+          System.out.println();
+          System.out.print(currentWord);
+          continue;
+        }
+      }
+
+      FreqMap freqMap = this.wordLibrary.get(currentWord);
+      String nextWord = null;
+
+      if (freqMap == null || freqMap.totalWordCount() == 0) {
+        currentWord = getRandomStarter();
+        System.out.println();
+        System.out.print(currentWord);
+        continue;
+      } else {
+        nextWord = freqMap.getRandWeightedWord();
+      }
+      System.out.print(" " + nextWord);
+      currentWord = nextWord;
+    }
   }
 
   // Generates and PRINTS the argument number of sentences,
@@ -135,8 +187,44 @@ public class ShakespeareGPT {
     if (!wordLibrary.containsKey(seedWord))
       throw new IllegalArgumentException("Seed word: \"" + seedWord + "\" doesn't exist in bot's word library!");
 
-    // Implement me!!
+    int sentencesGenerated = 0;
+    String currentWord = seedWord;
+    System.out.print(currentWord);
 
+    while (sentencesGenerated < numOfSentences) {
+      // Check if currentWord ended a sentence
+      if (isSentenceEnder(currentWord)) {
+        sentencesGenerated++;
+        if (sentencesGenerated == numOfSentences) {
+          // Done generating all required sentences
+          System.out.println();
+          break;
+        } else {
+          // Start a new sentence from a random starter (or we could try seed again,
+          // but instructions say to follow logic from section 1.2 - generally we pick a
+          // starter)
+          currentWord = getRandomStarter();
+          System.out.println();
+          System.out.print(currentWord);
+          continue;
+        }
+      }
+
+      FreqMap freqMap = this.wordLibrary.get(currentWord);
+      String nextWord = null;
+
+      if (freqMap == null || freqMap.totalWordCount() == 0) {
+        currentWord = getRandomStarter();
+        System.out.println();
+        System.out.print(currentWord);
+        continue;
+      } else {
+        nextWord = freqMap.getRandWeightedWord();
+      }
+
+      System.out.print(" " + nextWord);
+      currentWord = nextWord;
+    }
   }
 
   // Returns a nice, pretty string of the bot's words and their frequency maps
@@ -150,7 +238,7 @@ public class ShakespeareGPT {
   }
 
   // --Accessors--
-  public HashSet<String> getStarters() {
+  public HashSet<String> getLineStarters() {
     return this.starters;
   }
 
@@ -158,5 +246,4 @@ public class ShakespeareGPT {
     return this.wordLibrary;
   }
   // -------------
-
 }
