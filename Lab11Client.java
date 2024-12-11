@@ -6,10 +6,12 @@ public class Lab11Client {
 
     ShakespeareGPT bot = new ShakespeareGPT();
     bot.trainOnFile("AsYouLikeIt.txt");
+    bot.trainOnFile("RomeoAndJuliet.txt");
+    bot.trainOnFile("TwelfthNight.txt");
 
     System.out.println(bot.getLineStarters());
-
-    bot.generate(20);
+    bot.generate(10, "notInFile");
+    // bot.generate(20);
   }
 
 }
